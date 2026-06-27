@@ -10,7 +10,8 @@ internal sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
     {
         builder.ToTable("contacts");
 
-        builder.HasKey(c => c.Id);
+        builder.HasKey(c => c.Id)
+            .HasName("pk_contacts");
 
         builder.Property(c => c.Id)
             .HasColumnName("id")

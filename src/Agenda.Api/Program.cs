@@ -19,6 +19,13 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Apply pending migrations automatically in Development so clone-and-run works out of the box
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<AgendaDbContext>().Database.MigrateAsync();
+}
+
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Agenda API v1"));
 
