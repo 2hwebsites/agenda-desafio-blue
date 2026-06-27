@@ -1,6 +1,8 @@
 using Agenda.Application.Abstractions.Persistence;
 using Agenda.Domain.Entities;
+using Agenda.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Agenda.Infrastructure.Persistence.Repositories;
 
@@ -48,6 +50,16 @@ public sealed class ContactRepository(AgendaDbContext db) : IContactRepository
         return Task.CompletedTask;
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
-        => db.SaveChangesAsync(cancellationToken);
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException { SqlState: "23505", ConstraintName: "ix_contacts_email" })
+        {
+            throw new DuplicateEmailException();
+        }
+    }
 }
