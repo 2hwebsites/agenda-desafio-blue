@@ -10,6 +10,9 @@ Desafio técnico Tech Lead: CRUD de agenda de contatos com Clean Architecture.
 | C# | 14 (nullable enabled) |
 | EF Core + Npgsql | 10.0.9 / 10.0.2 |
 | PostgreSQL | 17 (Alpine) |
+| MediatR | 14.1.0 |
+| AutoMapper | 16.1.1 |
+| FluentValidation | 12.1.1 |
 | Swashbuckle | 7.3.1 |
 | Docker / Compose | 29+ |
 
@@ -18,15 +21,38 @@ Desafio técnico Tech Lead: CRUD de agenda de contatos com Clean Architecture.
 ```
 Agenda.sln
 ├── src/
-│   ├── Agenda.Domain/          # Entities, domain invariants
-│   ├── Agenda.Application/     # Use cases (phase 2+)
-│   ├── Agenda.Infrastructure/  # EF Core, DbContext, Migrations
-│   └── Agenda.Api/             # Web API, DI, Swagger
+│   ├── Agenda.Domain/          # Entities, domain invariants, domain exceptions
+│   ├── Agenda.Application/     # CQRS use cases (MediatR), DTOs, FluentValidation, AutoMapper
+│   ├── Agenda.Infrastructure/  # EF Core, DbContext, Migrations, repository impl
+│   └── Agenda.Api/             # Controllers, DI composition root, Swagger
 └── tests/
-    └── Agenda.Tests/           # xUnit (phase 2+)
+    └── Agenda.Tests/           # xUnit
 ```
 
 Referências: `Api → Application, Infrastructure` | `Application → Domain` | `Infrastructure → Application, Domain`
+
+## Decisões arquiteturais
+
+### CQRS com MediatR como Application Service
+
+A camada Application expõe somente Commands e Queries (MediatR). Os controllers não conhecem repositórios, nem o domínio diretamente — apenas enviam mensagens via `ISender`. Isso mantém o domínio livre de dependências de framework e facilita testar cada handler de forma isolada.
+
+### Soft delete
+
+Deleção não remove o registro do banco. O EF Core aplica `HasQueryFilter(c => !c.IsDeleted)` globalmente, tornando os registros excluídos invisíveis a todas as queries sem necessidade de filtro manual.
+
+### ProblemDetails (RFC 7807)
+
+Erros são sempre serialized como `ProblemDetails` via `IExceptionHandler` (`GlobalExceptionHandler`). Isso garante contrato uniforme de erros para qualquer cliente REST — sem exceções "cruas" escapando para a resposta HTTP.
+
+## Bibliotecas e licenciamento
+
+| Biblioteca | Licença | Observação |
+|---|---|---|
+| **MediatR 14** | Comercial (Lucky Penny Software) | Tier Community gratuito para OSS/pequenos projetos. Logs de licença são esperados — não são erros de build. |
+| **AutoMapper 16** | Comercial (Lucky Penny Software) | Mesmo modelo do MediatR. |
+| **FluentValidation 12** | MIT | Livre para uso comercial. |
+| Alternativas sem custo | — | [mediator](https://github.com/martinothamar/Mediator) (source generator), [Mapperly](https://github.com/riok/mapperly) (source gen), [mapster](https://github.com/MapsterMapper/Mapster) |
 
 ## Pré-requisitos
 
@@ -61,7 +87,7 @@ cp src/Agenda.Api/appsettings.Development.json.example src/Agenda.Api/appsetting
 dotnet run --project src/Agenda.Api/Agenda.Api.csproj
 ```
 
-Em ambiente `Development`, as migrations pendentes são aplicadas automaticamente no startup.
+Em ambiente `Development`, as migrations pendentes são aplicadas automaticamente no startup e 3 contatos de exemplo são inseridos caso a tabela esteja vazia.
 
 ### 4. Acessar o Swagger
 
@@ -80,6 +106,17 @@ docker compose down
 docker compose down -v
 ```
 
+## Endpoints
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/contacts` | Lista paginada (`?search=&page=1&pageSize=20`) |
+| GET | `/api/contacts/{id}` | Busca por ID |
+| POST | `/api/contacts` | Cria contato |
+| PUT | `/api/contacts/{id}` | Atualiza contato |
+| DELETE | `/api/contacts/{id}` | Remove (soft delete) |
+| GET | `/health` | Health check |
+
 ## Connection String
 
 `appsettings.json` (versionado) contém apenas placeholders. Os valores reais ficam em
@@ -89,9 +126,9 @@ docker compose down -v
 ConnectionStrings__Default=Host=...;Port=5432;Database=agenda;Username=...;Password=...
 ```
 
-## Applying Migrations Manually
+## Aplicando Migrations Manualmente
 
-If you need to run migrations outside of the API startup (e.g. in CI or production):
+Se precisar rodar migrations fora do startup da API (ex: CI ou produção):
 
 ```bash
 dotnet ef database update \
@@ -104,6 +141,6 @@ dotnet ef database update \
 | Fase | Status | Escopo |
 |---|---|---|
 | 1 — Fundação | ✅ Completo | Solution, Domain, EF Core, Swagger, /health, Migration |
-| 2 — CRUD | Pendente | ContactsController, Application layer, DTOs, validation |
+| 2 — CRUD + Application Layer | ✅ Completo | CQRS, MediatR, FluentValidation, AutoMapper, ProblemDetails |
 | 3 — Frontend | Pendente | Vue 3, integração com a API |
 | 4 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
