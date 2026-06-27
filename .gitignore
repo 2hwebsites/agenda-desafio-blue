@@ -1,0 +1,70 @@
+## .NET gitignore
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/[Pp]ackages/build/
+*.nuspec
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Dotnet tools
+.config/dotnet-tools.json
+
+# Build output
+publish/
+_PublishedWebsites/
+
+# User-specific files
+*.rsuser
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Rider temp
+*.DotSettings.user
+
+# EF Migrations backup (optional — keep migrations in source)
+# Uncomment if you want to ignore EF migrations bundles
+# efbundle
+
+# Secrets
+appsettings.*.json
+!appsettings.Development.json
+secrets.json
+.env
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
