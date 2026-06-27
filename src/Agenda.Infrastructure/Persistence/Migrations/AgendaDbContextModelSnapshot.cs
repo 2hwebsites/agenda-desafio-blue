@@ -22,15 +22,15 @@ namespace Agenda.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Agenda.Domain.Entities.Contato", b =>
+            modelBuilder.Entity("Agenda.Domain.Entities.Contact", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<DateTime>("CriadoEm")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("criado_em");
+                        .HasColumnName("created_at");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -38,30 +38,30 @@ namespace Agenda.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
 
-                    b.Property<bool>("Excluido")
+                    b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
-                        .HasColumnName("excluido");
+                        .HasColumnName("is_deleted");
 
-                    b.Property<string>("Nome")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
-                        .HasColumnName("nome");
+                        .HasColumnName("name");
 
-                    b.Property<string>("Telefone")
+                    b.Property<string>("Phone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("telefone");
+                        .HasColumnName("phone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique()
-                        .HasDatabaseName("ix_contatos_email");
+                        .HasDatabaseName("ix_contacts_email");
 
-                    b.ToTable("contatos", (string)null);
+                    b.ToTable("contacts", (string)null);
                 });
 #pragma warning restore 612, 618
         }

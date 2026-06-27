@@ -13,7 +13,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Agenda API",
         Version = "v1",
-        Description = "CRUD de contatos — desafio técnico Tech Lead",
+        Description = "Contact management API — Tech Lead technical challenge",
     });
 });
 
@@ -25,6 +25,6 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Agenda API 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .WithName("Health")
     .WithTags("Infra")
-    .WithSummary("Verifica se a API está no ar");
+    .WithSummary("Returns 200 OK when the API is running");
 
 app.Run();
