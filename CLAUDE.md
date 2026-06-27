@@ -45,3 +45,40 @@ Follow standard C#/.NET conventions:
   `class Contact`).
 - Folder structure follows Clean Architecture layers; keep each layer's concerns inside its
   own project.
+
+---
+
+## Workflow / Definition of Done
+
+These rules apply automatically to **every change**, without needing to be requested each time.
+
+### Build and tests must be green before committing
+1. After completing any requested change, run `dotnet build Agenda.sln` — the build **must**
+   succeed with **zero errors and zero warnings**.
+2. When tests exist, run `dotnet test` — all tests must pass.
+3. When a frontend exists, run its type-check/lint/build step (e.g. `npm run type-check`,
+   `npm run build`) — it must pass.
+4. **Never commit or push if anything fails.** Fix the root cause first, then commit.
+
+### Commit discipline
+- Only after the build/tests are green: stage the relevant files, write a clear commit message
+  in **conventional commits** format (`feat:`, `fix:`, `refactor:`, `test:`, `chore:`,
+  `docs:`), and run `git push` to keep the remote in sync.
+- Keep commits **incremental and meaningful**: one logical change per commit. Never bundle
+  unrelated changes into a single commit.
+- Commit messages must be in **English**.
+
+### Secret hygiene — non-negotiable
+- **Never commit secrets**: real connection strings, JWT signing keys, API tokens, license
+  keys, OAuth client secrets, or any `.env` file.
+- Keep secrets out of version control via `.gitignore` and use `appsettings.Development.json`
+  (gitignored), `dotnet user-secrets`, or environment variables for local development.
+- `appsettings.json` (committed) must contain only **placeholder values** such as
+  `<DB_USER>`, `<DB_PASS>`, `<JWT_SECRET>`.
+- **Before every commit**: verify that no secret is staged — check `git diff --cached` and
+  `git status`.
+
+### Never push broken code
+- Pushing non-compiling, failing-test, or partially-implemented code to `main` is forbidden.
+- If a change is too large for a single safe commit, break it into smaller, independently
+  compilable steps.
