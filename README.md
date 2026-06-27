@@ -6,33 +6,31 @@ Desafio técnico Tech Lead: CRUD de agenda de contatos com Clean Architecture.
 
 | Componente | Versão |
 |---|---|
-| .NET SDK | 9.0.x (target: `net9.0`) |
-| C# | 13 (nullable enabled) |
-| EF Core + Npgsql | 9.0.6 |
+| .NET SDK | 10.0.x (target: `net10.0`) |
+| C# | 14 (nullable enabled) |
+| EF Core + Npgsql | 10.0.9 / 10.0.2 |
 | PostgreSQL | 17 (Alpine) |
 | Swashbuckle | 7.3.1 |
 | Docker / Compose | 29+ |
-
-> **Nota .NET 10:** O projeto está configurado para `net9.0` pois o SDK 10 não estava disponível na máquina de desenvolvimento. Para migrar: altere `<TargetFramework>` em todos os `.csproj` para `net10.0` e atualize os pacotes para `10.x`.
 
 ## Arquitetura
 
 ```
 Agenda.sln
 ├── src/
-│   ├── Agenda.Domain/          # Entidades, invariantes de domínio
-│   ├── Agenda.Application/     # Casos de uso (fase 2+)
+│   ├── Agenda.Domain/          # Entities, domain invariants
+│   ├── Agenda.Application/     # Use cases (phase 2+)
 │   ├── Agenda.Infrastructure/  # EF Core, DbContext, Migrations
 │   └── Agenda.Api/             # Web API, DI, Swagger
 └── tests/
-    └── Agenda.Tests/           # xUnit (fase 2+)
+    └── Agenda.Tests/           # xUnit (phase 2+)
 ```
 
 Referências: `Api → Application, Infrastructure` | `Application → Domain` | `Infrastructure → Application, Domain`
 
 ## Pré-requisitos
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (com Docker Compose v2)
 - `dotnet-ef` CLI: `dotnet tool install --global dotnet-ef`
 
@@ -46,15 +44,16 @@ docker compose up -d
 
 Aguarde o healthcheck passar (`docker compose ps` mostrará `healthy`).
 
-### 2. Aplicar a Migration
+### 2. Configurar a connection string local
+
+Copie o arquivo de exemplo e ajuste se necessário:
 
 ```bash
-dotnet ef database update \
-    --project src/Agenda.Infrastructure/Agenda.Infrastructure.csproj \
-    --startup-project src/Agenda.Api/Agenda.Api.csproj
+cp src/Agenda.Api/appsettings.Development.json.example src/Agenda.Api/appsettings.Development.json
 ```
 
-Isso cria a tabela `contatos` com índice único em `email`.
+> O arquivo `.example` já contém as credenciais do docker-compose local e funciona sem alterações.
+> `appsettings.Development.json` está no `.gitignore` e nunca é commitado.
 
 ### 3. Rodar a API
 
@@ -62,9 +61,11 @@ Isso cria a tabela `contatos` com índice único em `email`.
 dotnet run --project src/Agenda.Api/Agenda.Api.csproj
 ```
 
+Em ambiente `Development`, as migrations pendentes são aplicadas automaticamente no startup.
+
 ### 4. Acessar o Swagger
 
-Abra no navegador: [http://localhost:5156/swagger](http://localhost:5156/swagger)
+Abra no navegador: [http://localhost:5196/swagger](http://localhost:5196/swagger)
 
 O endpoint `/health` estará disponível e retornará:
 ```json
@@ -81,15 +82,21 @@ docker compose down -v
 
 ## Connection String
 
-Configurada em `src/Agenda.Api/appsettings.json`:
+`appsettings.json` (versionado) contém apenas placeholders. Os valores reais ficam em
+`appsettings.Development.json` (gitignored). Para outros ambientes, use variáveis de ambiente:
 
 ```
-Host=localhost;Port=5432;Database=agenda;Username=agenda_user;Password=agenda_pass
+ConnectionStrings__Default=Host=...;Port=5432;Database=agenda;Username=...;Password=...
 ```
 
-Para ambientes diferentes, use `appsettings.{Environment}.json` ou variáveis de ambiente:
-```
-ConnectionStrings__Default=Host=...
+## Applying Migrations Manually
+
+If you need to run migrations outside of the API startup (e.g. in CI or production):
+
+```bash
+dotnet ef database update \
+    --project src/Agenda.Infrastructure/Agenda.Infrastructure.csproj \
+    --startup-project src/Agenda.Api/Agenda.Api.csproj
 ```
 
 ## Fases do Projeto
@@ -97,6 +104,6 @@ ConnectionStrings__Default=Host=...
 | Fase | Status | Escopo |
 |---|---|---|
 | 1 — Fundação | ✅ Completo | Solution, Domain, EF Core, Swagger, /health, Migration |
-| 2 — CRUD | Pendente | ContatosController, Application layer, DTOs, validação |
+| 2 — CRUD | Pendente | ContactsController, Application layer, DTOs, validation |
 | 3 — Frontend | Pendente | Vue 3, integração com a API |
 | 4 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
