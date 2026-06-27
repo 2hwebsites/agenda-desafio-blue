@@ -58,9 +58,8 @@ desktop.ini
 # Uncomment if you want to ignore EF migrations bundles
 # efbundle
 
-# Secrets
+# Secrets — never commit real credentials; use environment variables or user-secrets
 appsettings.*.json
-!appsettings.Development.json
 secrets.json
 .env
 
