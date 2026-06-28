@@ -1,6 +1,11 @@
 import { ref } from 'vue'
-import type { Contact } from '@/types/contact'
-import { getContacts } from '@/services/contactService'
+import type { Contact, ContactPayload } from '@/types/contact'
+import {
+  getContacts,
+  createContact as apiCreate,
+  updateContact as apiUpdate,
+  deleteContact as apiDelete,
+} from '@/services/contactService'
 
 export function useContacts() {
   const contacts = ref<Contact[]>([])
@@ -29,5 +34,32 @@ export function useContacts() {
     }
   }
 
-  return { contacts, loading, totalRecords, search, page, pageSize, errorMessage, fetchContacts }
+  async function createContact(payload: ContactPayload): Promise<void> {
+    await apiCreate(payload)
+    await fetchContacts()
+  }
+
+  async function updateContact(id: string, payload: ContactPayload): Promise<void> {
+    await apiUpdate(id, payload)
+    await fetchContacts()
+  }
+
+  async function removeContact(id: string): Promise<void> {
+    await apiDelete(id)
+    await fetchContacts()
+  }
+
+  return {
+    contacts,
+    loading,
+    totalRecords,
+    search,
+    page,
+    pageSize,
+    errorMessage,
+    fetchContacts,
+    createContact,
+    updateContact,
+    removeContact,
+  }
 }
