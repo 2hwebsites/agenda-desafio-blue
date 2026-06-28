@@ -13,17 +13,34 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is ValidationException ve)
+        {
+            var vp = new ValidationProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dados inválidos",
+                Instance = httpContext.Request.Path,
+            };
+            foreach (var group in ve.Errors.GroupBy(e => ToCamelCase(e.PropertyName)))
+                vp.Errors[group.Key] = group.Select(e => e.ErrorMessage).ToArray();
+
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            httpContext.Response.ContentType = "application/problem+json";
+            await httpContext.Response.WriteAsJsonAsync(vp, cancellationToken);
+            return true;
+        }
+
         var (statusCode, title, detail) = exception switch
         {
-            NotFoundException nfe => (StatusCodes.Status404NotFound, "Recurso não encontrado", nfe.Message),
+            NotFoundException => (StatusCodes.Status404NotFound, "Recurso não encontrado", "Contato não encontrado."),
             DuplicateEmailException dee => (StatusCodes.Status409Conflict, "E-mail duplicado", dee.Message),
-            ValidationException ve => (StatusCodes.Status422UnprocessableEntity, "Erro de validação",
-                string.Join(" | ", ve.Errors.Select(e => e.ErrorMessage))),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno do servidor", "Ocorreu um erro inesperado."),
         };
 
         if (statusCode == StatusCodes.Status500InternalServerError)
             logger.LogError(exception, "Unhandled exception");
+        else if (exception is NotFoundException)
+            logger.LogInformation("Not found: {Message}", exception.Message);
 
         var problem = new ProblemDetails
         {
@@ -34,8 +51,11 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         };
 
         httpContext.Response.StatusCode = statusCode;
+        httpContext.Response.ContentType = "application/problem+json";
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-
         return true;
     }
+
+    private static string ToCamelCase(string name) =>
+        string.IsNullOrEmpty(name) ? name : char.ToLowerInvariant(name[0]) + name[1..];
 }
