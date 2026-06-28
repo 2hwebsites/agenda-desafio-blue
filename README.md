@@ -138,11 +138,57 @@ dotnet ef database update \
     --startup-project src/Agenda.Api/Agenda.Api.csproj
 ```
 
+## Testes e cobertura
+
+```
+tests/
+└── Agenda.Tests/
+    ├── Unit/
+    │   ├── Domain/              # Testes de entidade (Contact.Create, Update, MarkAsDeleted)
+    │   ├── Validators/          # FluentValidation — casos válidos e inválidos
+    │   └── Handlers/            # Handlers CQRS com NSubstitute (sem banco, sem Docker)
+    └── Integration/             # HTTP end-to-end com Testcontainers (PostgreSQL real)
+```
+
+### Executar testes
+
+```bash
+# Apenas unitários (sem Docker)
+dotnet test --filter "Category!=Integration"
+
+# Todos (exige Docker)
+dotnet test
+
+# Com relatório de cobertura
+dotnet test --filter "Category!=Integration" --collect:"XPlat Code Coverage"
+```
+
+### Cobertura (testes unitários, unit only)
+
+| Projeto | Line rate | Branch rate |
+|---|---|---|
+| Agenda.Domain | 96.7% | 100% |
+| Agenda.Application | 75.6% | 60% |
+
+> `Agenda.Api` e `Agenda.Infrastructure` são cobertos pelos testes de integração.
+
+### Pacotes de teste
+
+| Pacote | Versão | Papel |
+|---|---|---|
+| xUnit | 2.9.2 | Framework de testes |
+| Shouldly | 4.3.0 | Assertions fluentes |
+| NSubstitute | 5.3.0 | Mocks (testes unitários) |
+| Testcontainers.PostgreSql | 4.12.0 | PostgreSQL real via Docker (integração) |
+| Microsoft.AspNetCore.Mvc.Testing | 10.0.9 | WebApplicationFactory (integração) |
+
 ## Fases do Projeto
 
 | Fase | Status | Escopo |
 |---|---|---|
 | 1 — Fundação | ✅ Completo | Solution, Domain, EF Core, Swagger, /health, Migration |
 | 2 — CRUD + Application Layer | ✅ Completo | CQRS, MediatR, FluentValidation, AutoMapper, ProblemDetails |
-| 3 — Frontend | Pendente | Vue 3, integração com a API |
-| 4 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
+| 2.1 — Contratos de erro | ✅ Completo | 400 ValidationProblemDetails, 409 race condition, 404 pt-BR |
+| 3 — Testes | ✅ Completo | Unit + Integration (Testcontainers), 67 testes, cobertura reportada |
+| 4 — Frontend | Pendente | Vue 3, integração com a API |
+| 5 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
