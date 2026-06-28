@@ -50,6 +50,7 @@ services:
       RabbitMq__Port: "5672"
       RabbitMq__Username: guest
       RabbitMq__Password: guest
+      Cors__AllowedOrigins__0: "http://localhost:5173"
     ports:
       - "8080:8080"
     depends_on:
