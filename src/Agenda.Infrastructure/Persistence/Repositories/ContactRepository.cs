@@ -28,10 +28,10 @@ public sealed class ContactRepository(AgendaDbContext db) : IContactRepository
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim().ToLowerInvariant();
+            var term = search.Trim();
             query = query.Where(c =>
-                c.Name.ToLower().Contains(term) ||
-                c.Email.Contains(term));
+                EF.Functions.ILike(c.Name, $"%{term}%") ||
+                EF.Functions.ILike(c.Email, $"%{term}%"));
         }
 
         var total = await query.CountAsync(cancellationToken);
