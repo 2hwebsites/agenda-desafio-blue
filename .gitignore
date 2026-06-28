@@ -70,3 +70,6 @@ coveragereport/
 *.coverage
 *.coveragexml
 **/TestResults/
+
+# Claude Code
+.claude/
