@@ -1,14 +1,43 @@
+using System.Text;
+using Agenda.Api.Auth;
 using Agenda.Api.Common;
 using Agenda.Application;
 using Agenda.Domain.Entities;
 using Agenda.Infrastructure;
 using Agenda.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<AuthSeedOptions>(builder.Configuration.GetSection("AuthSeed"));
+builder.Services.AddSingleton<ITokenService, TokenService>();
+
+var jwtOpts = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOpts.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOpts.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOpts.Key)),
+            ClockSkew = TimeSpan.Zero,
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -18,6 +47,29 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Agenda API", Version = "v1",
         Description = "Contact management API — Tech Lead technical challenge",
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Insira o token JWT obtido via POST /api/auth/login. Exemplo: eyJhbGci...",
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer",
+                },
+            },
+            Array.Empty<string>()
+        },
     });
 });
 
@@ -49,6 +101,9 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Agenda API 
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .WithName("Health").WithTags("Infra").WithSummary("Returns 200 OK when the API is running");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

@@ -6,6 +6,7 @@ using Agenda.Application.Contacts.Commands.UpdateContact;
 using Agenda.Application.Contacts.Queries.GetContactById;
 using Agenda.Application.Contacts.Queries.GetContacts;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Agenda.Api.Controllers;
@@ -13,6 +14,7 @@ namespace Agenda.Api.Controllers;
 [ApiController]
 [Route("api/contacts")]
 [Produces("application/json")]
+[Authorize]
 public sealed class ContactsController(ISender sender) : ControllerBase
 {
     [HttpGet]
