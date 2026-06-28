@@ -16,8 +16,7 @@ const password = ref('')
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 
-async function handleSubmit(event: Event) {
-  event.preventDefault()
+async function handleSubmit() {
   errorMessage.value = null
   loading.value = true
   try {
@@ -36,7 +35,7 @@ async function handleSubmit(event: Event) {
     <Card class="login-card">
       <template #title>Agenda de Contatos</template>
       <template #content>
-        <form @submit="handleSubmit" class="login-form">
+        <form @submit.prevent="handleSubmit" class="login-form">
           <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
 
           <div class="field">
