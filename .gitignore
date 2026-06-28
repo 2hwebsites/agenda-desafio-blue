@@ -73,3 +73,6 @@ coveragereport/
 
 # Claude Code
 .claude/
+
+# Archives
+*.zip
