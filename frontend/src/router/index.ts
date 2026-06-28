@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import LoginView from '@/views/LoginView.vue'
-import ContactsView from '@/views/ContactsView.vue'
+const LoginView = () => import('@/views/LoginView.vue')
+const ContactsView = () => import('@/views/ContactsView.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {
