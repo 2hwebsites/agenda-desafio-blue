@@ -10,6 +10,8 @@ Desafio técnico Tech Lead: CRUD de agenda de contatos com Clean Architecture.
 | C# | 14 (nullable enabled) |
 | EF Core + Npgsql | 10.0.9 / 10.0.2 |
 | PostgreSQL | 17 (Alpine) |
+| RabbitMQ | 4 (management-alpine) |
+| RabbitMQ.Client | 7.2.1 |
 | MediatR | 14.1.0 |
 | AutoMapper | 16.1.1 |
 | FluentValidation | 12.1.1 |
@@ -22,14 +24,16 @@ Desafio técnico Tech Lead: CRUD de agenda de contatos com Clean Architecture.
 Agenda.sln
 ├── src/
 │   ├── Agenda.Domain/          # Entities, domain invariants, domain exceptions
+│   ├── Agenda.Contracts/       # Integration event records and messaging constants (no deps)
 │   ├── Agenda.Application/     # CQRS use cases (MediatR), DTOs, FluentValidation, AutoMapper
-│   ├── Agenda.Infrastructure/  # EF Core, DbContext, Migrations, repository impl
-│   └── Agenda.Api/             # Controllers, DI composition root, Swagger
+│   ├── Agenda.Infrastructure/  # EF Core, DbContext, Migrations, RabbitMQ publisher
+│   ├── Agenda.Api/             # Controllers, DI composition root, Swagger
+│   └── Agenda.Worker/          # Background service — RabbitMQ consumer
 └── tests/
-    └── Agenda.Tests/           # xUnit
+    └── Agenda.Tests/           # xUnit (unit + integration with Testcontainers)
 ```
 
-Referências: `Api → Application, Infrastructure` | `Application → Domain` | `Infrastructure → Application, Domain`
+Referências: `Api → Application, Infrastructure` | `Application → Domain, Contracts` | `Infrastructure → Application, Contracts` | `Worker → Contracts`
 
 ## Decisões arquiteturais
 
@@ -45,6 +49,17 @@ Deleção não remove o registro do banco. O EF Core aplica `HasQueryFilter(c =>
 
 Erros são sempre serialized como `ProblemDetails` via `IExceptionHandler` (`GlobalExceptionHandler`). Isso garante contrato uniforme de erros para qualquer cliente REST — sem exceções "cruas" escapando para a resposta HTTP.
 
+## Diferenciais e decisões (trade-offs)
+
+Para um CRUD desta escala, CQRS, JWT e RabbitMQ são deliberadamente além do necessário — aplicados para demonstrar domínio técnico, não porque o problema exige. A tabela abaixo é honesta sobre quando cada padrão se justifica em produção.
+
+| Padrão / tecnologia | O que demonstra | Quando se justifica de verdade |
+|---|---|---|
+| **CQRS com MediatR** | Separação de comandos e queries, pipeline de comportamentos | Modelos de leitura e escrita divergentes; leitura em alta escala separada da escrita; múltiplos handlers decorados com cross-cutting concerns (logging, validação, cache) |
+| **JWT stateless** | Emissão e validação de token sem sessão no servidor | APIs consumidas por SPAs ou mobile, múltiplas instâncias sem sessão compartilhada. Em produção: store de usuários com hash de senha (ASP.NET Core Identity ou equivalente) no lugar da credencial-semente |
+| **RabbitMQ + domain events** | Desacoplamento de serviços via mensageria assíncrona | Processamento que não precisa ser síncrono com a requisição (e-mail, notificação, auditoria), integração entre bounded contexts distintos. Em produção: padrão Transactional Outbox para garantir entrega atômica com o commit do banco |
+| **Clean Architecture (4 camadas)** | Inversão de dependência, testabilidade por camada | Sistemas que precisam trocar de framework, ORM ou broker sem reescrever regras de negócio; times grandes com ownership por camada |
+
 ## Bibliotecas e licenciamento
 
 | Biblioteca | Licença | Observação |
@@ -56,54 +71,87 @@ Erros são sempre serialized como `ProblemDetails` via `IExceptionHandler` (`Glo
 
 ## Pré-requisitos
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (com Docker Compose v2)
-- `dotnet-ef` CLI: `dotnet tool install --global dotnet-ef`
+| Caminho | Requisitos |
+|---|---|
+| Docker (recomendado) | [Docker Desktop](https://www.docker.com/products/docker-desktop/) com Compose v2 |
+| Desenvolvimento local | Docker Desktop + [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) + `dotnet tool install -g dotnet-ef` |
 
 ## Como Rodar
 
-### 1. Subir o PostgreSQL
+### Opção A — Docker (recomendado, zero configuração)
 
 ```bash
-docker compose up -d
+git clone https://github.com/2hwebsites/agenda-desafio-blue.git
+cd agenda-desafio-blue
+docker compose up --build
 ```
 
-Aguarde o healthcheck passar (`docker compose ps` mostrará `healthy`).
+O compose sobe 4 serviços em ordem:
 
-### 2. Configurar a connection string local
+1. **postgres** → aguarda healthcheck (`pg_isready`)
+2. **rabbitmq** → aguarda healthcheck (`rabbitmq-diagnostics ping`)
+3. **api** → roda migrations + seed (via `RUN_MIGRATIONS=true`) e serve a API
+4. **worker** → conecta ao RabbitMQ e aguarda mensagens
 
-Copie o arquivo de exemplo e ajuste se necessário:
+Aguarde todas as linhas de "started" aparecerem (30–60 s no primeiro build). Após isso:
+
+| Recurso | URL |
+|---|---|
+| Swagger UI | http://localhost:8080/swagger |
+| Health check | http://localhost:8080/health |
+| RabbitMQ Management | http://localhost:15672 (guest / guest) |
+
+**Credenciais de acesso à API (dev, definidas no compose):**
+- Usuário: `admin` · Senha: `admin123`
+
+> **Nota de segurança:** as credenciais no `docker-compose.yml` são descartáveis e servem apenas para desenvolvimento/demonstração local. O `appsettings.json` versionado contém apenas placeholders (`<JWT_SECRET>`, `<DB_PASS>` etc.); valores reais entram por variáveis de ambiente em produção.
+
+Para parar:
 
 ```bash
-cp src/Agenda.Api/appsettings.Development.json.example src/Agenda.Api/appsettings.Development.json
+docker compose down          # mantém volumes
+docker compose down -v       # remove volumes (banco limpo)
 ```
 
-> O arquivo `.example` já contém as credenciais do docker-compose local e funciona sem alterações.
+---
+
+### Opção B — Desenvolvimento local (dotnet run)
+
+**1. Subir apenas a infra:**
+
+```bash
+docker compose up -d postgres rabbitmq
+```
+
+**2. Configurar arquivos de dev (uma vez):**
+
+```bash
+cp src/Agenda.Api/appsettings.Development.json.example   src/Agenda.Api/appsettings.Development.json
+cp src/Agenda.Worker/appsettings.Development.json.example src/Agenda.Worker/appsettings.Development.json
+```
+
+> Os arquivos `.example` já apontam para `localhost` e funcionam sem alterações.
 > `appsettings.Development.json` está no `.gitignore` e nunca é commitado.
 
-### 3. Rodar a API
+**3. Terminal 1 — API:**
 
 ```bash
 dotnet run --project src/Agenda.Api/Agenda.Api.csproj
+# Swagger em http://localhost:5196/swagger
 ```
 
-Em ambiente `Development`, as migrations pendentes são aplicadas automaticamente no startup e 3 contatos de exemplo são inseridos caso a tabela esteja vazia.
+Em ambiente `Development`, `RUN_MIGRATIONS` assume `true` como padrão — migrations e seed são aplicados automaticamente.
 
-### 4. Acessar o Swagger
+**4. Terminal 2 — Worker:**
 
-Abra no navegador: [http://localhost:5196/swagger](http://localhost:5196/swagger)
-
-O endpoint `/health` estará disponível e retornará:
-```json
-{ "status": "healthy", "timestamp": "2026-..." }
+```bash
+dotnet run --project src/Agenda.Worker/Agenda.Worker.csproj
 ```
 
-### 5. Parar o banco
+**5. Parar tudo:**
 
 ```bash
 docker compose down
-# Para remover também o volume de dados:
-docker compose down -v
 ```
 
 ## Endpoints
@@ -131,8 +179,9 @@ A API usa **JWT Bearer (HMAC-SHA256)**. Todos os endpoints de `/api/contacts` ex
 ### Fluxo de login
 
 ```bash
+# Docker (porta 8080) — substitua 8080 por 5196 se rodar via dotnet run
 # 1. Obter token
-curl -X POST http://localhost:5196/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
@@ -140,13 +189,13 @@ curl -X POST http://localhost:5196/api/auth/login \
 # { "token": "eyJhbGci...", "expiresAt": "2026-06-28T14:00:00Z" }
 
 # 2. Usar o token
-curl http://localhost:5196/api/contacts \
+curl http://localhost:8080/api/contacts \
   -H "Authorization: Bearer eyJhbGci..."
 ```
 
 ### Usar no Swagger
 
-1. Acesse [http://localhost:5196/swagger](http://localhost:5196/swagger)
+1. Docker: acesse [http://localhost:8080/swagger](http://localhost:8080/swagger) · `dotnet run`: [http://localhost:5196/swagger](http://localhost:5196/swagger)
 2. Faça `POST /api/auth/login` com as credenciais de dev
 3. Copie o valor do campo `token` da resposta
 4. Clique no botão **Authorize** (canto superior direito)
@@ -248,7 +297,7 @@ dotnet test --filter "Category!=Integration" --collect:"XPlat Code Coverage"
 | 3.1 — Auth JWT | ✅ Completo | Login com credencial-semente, Bearer JWT, Swagger Authorize |
 | 3.2 — Mensageria | ✅ Completo | RabbitMQ, domain events, Agenda.Contracts, Agenda.Worker |
 | 4 — Frontend | Pendente | Vue 3, integração com a API |
-| 5 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
+| 5 — Deploy | ✅ Completo | Dockerfiles multi-stage, docker-compose 4 serviços, clone-and-run |
 
 ## Mensageria (RabbitMQ)
 

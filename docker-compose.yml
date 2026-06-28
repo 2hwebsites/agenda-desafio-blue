@@ -33,6 +33,49 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: src/Agenda.Api/Dockerfile
+    container_name: agenda_api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=agenda;Username=agenda_user;Password=agenda_pass"
+      RUN_MIGRATIONS: "true"
+      Jwt__Issuer: agenda-api
+      Jwt__Audience: agenda-frontend
+      # Dev/disposable key — replace with a real secret in production
+      Jwt__Key: "Agenda@Compose!Dev!SecretKey#2026JwtToken!!MustBe32CharsMin"
+      Jwt__ExpiresMinutes: "60"
+      AuthSeed__Username: admin
+      AuthSeed__Password: admin123
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/Agenda.Worker/Dockerfile
+    container_name: agenda_worker
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 volumes:
   agenda_pgdata:
     driver: local
