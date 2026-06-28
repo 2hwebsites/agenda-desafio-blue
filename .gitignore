@@ -63,7 +63,10 @@ appsettings.*.json
 secrets.json
 .env
 
-# Coverage
+# Coverage and test results
 coverage/
+coverage-results/
+coveragereport/
 *.coverage
 *.coveragexml
+**/TestResults/
