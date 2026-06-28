@@ -7,5 +7,15 @@
   },
   "ConnectionStrings": {
     "Default": "Host=localhost;Port=5432;Database=agenda;Username=agenda_user;Password=agenda_pass"
+  },
+  "Jwt": {
+    "Issuer": "agenda-api-dev",
+    "Audience": "agenda-frontend-dev",
+    "Key": "Agenda@Dev!SecretKey#2026$JwtToken!!MustBe32CharsMin",
+    "ExpiresMinutes": 60
+  },
+  "AuthSeed": {
+    "Username": "admin",
+    "Password": "admin123"
   }
 }
