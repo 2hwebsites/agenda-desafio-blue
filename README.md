@@ -246,5 +246,131 @@ dotnet test --filter "Category!=Integration" --collect:"XPlat Code Coverage"
 | 2.1 — Contratos de erro | ✅ Completo | 400 ValidationProblemDetails, 409 race condition, 404 pt-BR |
 | 3 — Testes | ✅ Completo | Unit + Integration (Testcontainers), 80 testes, cobertura reportada |
 | 3.1 — Auth JWT | ✅ Completo | Login com credencial-semente, Bearer JWT, Swagger Authorize |
+| 3.2 — Mensageria | ✅ Completo | RabbitMQ, domain events, Agenda.Contracts, Agenda.Worker |
 | 4 — Frontend | Pendente | Vue 3, integração com a API |
 | 5 — Deploy | Pendente | Dockerfile API, docker-compose completo, CI |
+
+## Mensageria (RabbitMQ)
+
+### Fluxo de eventos
+
+```
+POST /api/contacts
+       │
+       ▼
+CreateContactHandler
+  (salva no banco)
+       │
+       │  IPublisher.Publish(ContactCreatedDomainEvent)
+       ▼
+ContactCreatedDomainEventHandler
+  (Application layer)
+       │
+       │  IIntegrationEventPublisher.PublishAsync(ContactCreatedIntegrationEvent)
+       ▼
+RabbitMqIntegrationEventPublisher
+  (Infrastructure layer)
+       │
+       │  BasicPublishAsync — JSON, persistent=true
+       ▼
+Exchange: agenda.events  (topic, durable)
+  routing key: contact.created
+       │
+       ▼
+Queue: contact.created.welcome-email  (durable)
+       │
+       ▼
+Agenda.Worker / ContactCreatedConsumer
+  → LOG: "Sending welcome email to {Email} for contact {Name}"
+  → BasicAckAsync (sucesso) / BasicNackAsync requeue=false (erro)
+```
+
+### Como rodar API + Worker juntos
+
+**Terminal 1 — infraestrutura:**
+```bash
+docker compose up -d
+# Aguarde postgres e rabbitmq ficarem healthy:
+docker compose ps
+```
+
+**Terminal 2 — copiar config do Worker (primeira vez):**
+```bash
+cp src/Agenda.Worker/appsettings.Development.json.example \
+   src/Agenda.Worker/appsettings.Development.json
+```
+
+> O `.example` já aponta para `localhost/guest/guest` — funciona sem alterações com o docker-compose local.
+
+**Terminal 2 — API:**
+```bash
+cp src/Agenda.Api/appsettings.Development.json.example \
+   src/Agenda.Api/appsettings.Development.json   # se ainda não fez
+dotnet run --project src/Agenda.Api/Agenda.Api.csproj
+```
+
+**Terminal 3 — Worker:**
+```bash
+dotnet run --project src/Agenda.Worker/Agenda.Worker.csproj
+```
+
+Você verá no log do Worker:
+```
+info: Agenda.Worker.ContactCreatedConsumer[0]
+      Connected to RabbitMQ at localhost:5672. Consuming from queue 'contact.created.welcome-email'
+```
+
+**Terminal 4 — criar um contato:**
+```bash
+# 1. Obter token
+TOKEN=$(curl -s -X POST http://localhost:5196/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | \
+  grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+# 2. Criar contato
+curl -X POST http://localhost:5196/api/contacts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"João Silva","email":"joao@exemplo.com","phone":"11999999999"}'
+```
+
+O Worker logará imediatamente:
+```
+info: Agenda.Worker.ContactCreatedConsumer[0]
+      Sending welcome email to joao@exemplo.com for contact João Silva (Id: <guid>)
+```
+
+### RabbitMQ Management UI
+
+Acesse [http://localhost:15672](http://localhost:15672) com `guest / guest` para inspecionar exchanges, filas e mensagens.
+
+### Nota de arquitetura — publish best-effort
+
+O publisher atual é **best-effort**: se o RabbitMQ estiver indisponível no momento do `POST /api/contacts`, o erro é apenas logado e o contato é salvo normalmente. O evento de integração é perdido silenciosamente.
+
+**Em produção o correto seria o padrão Transactional Outbox:**
+1. Ao salvar o contato, gravar também o evento numa tabela `outbox_messages` — na mesma transação de banco.
+2. Um background job lê a outbox e publica no broker.
+3. Após confirmação do broker (BasicAck), marcar a mensagem como processada.
+
+Isso garante entrega atômica: ou o contato e o evento são persistidos juntos, ou nenhum deles é. A implementação atual foi omitida intencionalmente para manter o escopo do desafio.
+
+### Configuração RabbitMQ
+
+| Chave | `appsettings.json` | `appsettings.Development.json` |
+|---|---|---|
+| `RabbitMq:Host` | `<RABBITMQ_HOST>` | `localhost` |
+| `RabbitMq:Port` | `5672` | `5672` |
+| `RabbitMq:Username` | `<RABBITMQ_USERNAME>` | `guest` |
+| `RabbitMq:Password` | `<RABBITMQ_PASSWORD>` | `guest` |
+
+Para ambientes não-Development, use variáveis de ambiente:
+```
+RabbitMq__Host=<host>
+RabbitMq__Port=5672
+RabbitMq__Username=<user>
+RabbitMq__Password=<password>
+```
+
+Se a seção `RabbitMq` estiver ausente na configuração (ex.: testes), a Infrastructure registra automaticamente um `NoOpIntegrationEventPublisher` que descarta eventos silenciosamente — os 80 testes existentes passam sem nenhum broker.
