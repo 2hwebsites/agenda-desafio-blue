@@ -17,14 +17,22 @@ public sealed class RabbitMqIntegrationEventPublisher(
     {
         try
         {
-            var channel = await GetChannelAsync(cancellationToken);
             var body = JsonSerializer.SerializeToUtf8Bytes(@event);
             var props = new BasicProperties { Persistent = true };
 
-            await channel.BasicPublishAsync(
-                MessagingConstants.Exchange, routingKey,
-                mandatory: false, basicProperties: props, body: body,
-                cancellationToken: cancellationToken);
+            await _semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                _channel ??= await OpenChannelAsync(cancellationToken);
+                await _channel.BasicPublishAsync(
+                    MessagingConstants.Exchange, routingKey,
+                    mandatory: false, basicProperties: props, body: body,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
 
             logger.LogDebug(
                 "Published {EventType} to exchange '{Exchange}' with routing key '{RoutingKey}'",
@@ -32,35 +40,19 @@ public sealed class RabbitMqIntegrationEventPublisher(
         }
         catch (Exception ex)
         {
-            // best-effort: log and don't propagate so the HTTP request is not affected
             logger.LogError(ex,
                 "Failed to publish {EventType} to RabbitMQ — event dropped",
                 typeof(T).Name);
         }
     }
 
-    private async Task<IChannel> GetChannelAsync(CancellationToken ct)
+    private async Task<IChannel> OpenChannelAsync(CancellationToken ct)
     {
-        if (_channel is not null) return _channel;
-
-        await _semaphore.WaitAsync(ct);
-        try
-        {
-            if (_channel is null)
-            {
-                _channel = await connection.CreateChannelAsync(ct);
-
-                await _channel.ExchangeDeclareAsync(
-                    MessagingConstants.Exchange, ExchangeType.Topic,
-                    durable: true, autoDelete: false, cancellationToken: ct);
-            }
-
-            return _channel;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        var channel = await connection.CreateChannelAsync(ct);
+        await channel.ExchangeDeclareAsync(
+            MessagingConstants.Exchange, ExchangeType.Topic,
+            durable: true, autoDelete: false, cancellationToken: ct);
+        return channel;
     }
 
     public async ValueTask DisposeAsync()
