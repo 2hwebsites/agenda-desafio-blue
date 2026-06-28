@@ -1,6 +1,7 @@
 using Agenda.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -16,11 +17,8 @@ public sealed class AgendaApiFactory : WebApplicationFactory<Program>, IAsyncLif
     private const string TestJwtIssuer = "agenda-tests";
     private const string TestJwtAudience = "agenda-tests";
 
-#pragma warning disable CS0618
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:17-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
         .Build();
-#pragma warning restore CS0618
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -33,7 +31,7 @@ public sealed class AgendaApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("AuthSeed:Username", TestUsername);
         builder.UseSetting("AuthSeed:Password", TestPassword);
 
-        builder.ConfigureServices(services =>
+        builder.ConfigureTestServices(services =>
         {
             var existing = services
                 .Where(d => d.ServiceType == typeof(DbContextOptions<AgendaDbContext>))
