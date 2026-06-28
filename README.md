@@ -108,14 +108,16 @@ docker compose down -v
 
 ## Endpoints
 
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/contacts` | Lista paginada (`?search=&page=1&pageSize=20`) |
-| GET | `/api/contacts/{id}` | Busca por ID |
-| POST | `/api/contacts` | Cria contato |
-| PUT | `/api/contacts/{id}` | Atualiza contato |
-| DELETE | `/api/contacts/{id}` | Remove (soft delete) |
-| GET | `/health` | Health check |
+| Método | Rota | Descrição | Status codes |
+|---|---|---|---|
+| GET | `/api/contacts` | Lista paginada (`?search=&page=1&pageSize=20`) | 200 |
+| GET | `/api/contacts/{id}` | Busca por ID | 200, 404 |
+| POST | `/api/contacts` | Cria contato | 201, 400, 409 |
+| PUT | `/api/contacts/{id}` | Atualiza contato | 200, 400, 404, 409 |
+| DELETE | `/api/contacts/{id}` | Remove (soft delete) | 204, 404 |
+| GET | `/health` | Health check | 200 |
+
+**Erros de validação → 400 com `ValidationProblemDetails`:** erros são agrupados por campo (não concatenados numa string), unificando com o padrão do ASP.NET Core e permitindo exibição de erro por campo no front-end.
 
 ## Connection String
 
