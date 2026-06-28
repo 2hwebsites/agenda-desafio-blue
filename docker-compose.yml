@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: agenda_postgres
     environment:
       POSTGRES_DB: agenda
       POSTGRES_USER: agenda_user
@@ -18,7 +17,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
-    container_name: agenda_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -37,7 +35,6 @@ services:
     build:
       context: .
       dockerfile: src/Agenda.Api/Dockerfile
-    container_name: agenda_api
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=agenda;Username=agenda_user;Password=agenda_pass"
@@ -65,7 +62,6 @@ services:
     build:
       context: .
       dockerfile: src/Agenda.Worker/Dockerfile
-    container_name: agenda_worker
     environment:
       DOTNET_ENVIRONMENT: Production
       RabbitMq__Host: rabbitmq
