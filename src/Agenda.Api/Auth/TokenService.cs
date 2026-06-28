@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Agenda.Application.Abstractions.Auth;
+using Agenda.Application.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -10,7 +12,7 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
 {
     private readonly JwtOptions _opts = options.Value;
 
-    public (string Token, DateTime ExpiresAt) GenerateToken(string username, string role)
+    public TokenResult GenerateToken(string username, string role)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -34,6 +36,6 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
             expires: expiresAt,
             signingCredentials: credentials);
 
-        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+        return new TokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 }

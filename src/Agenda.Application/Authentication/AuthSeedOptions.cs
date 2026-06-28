@@ -1,4 +1,4 @@
-namespace Agenda.Api.Auth;
+namespace Agenda.Application.Authentication;
 
 public sealed class AuthSeedOptions
 {

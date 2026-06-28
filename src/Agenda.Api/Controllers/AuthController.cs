@@ -1,7 +1,8 @@
-using Agenda.Api.Auth;
+using Agenda.Application.Authentication;
+using Agenda.Application.Authentication.Login;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace Agenda.Api.Controllers;
 
@@ -9,29 +10,14 @@ namespace Agenda.Api.Controllers;
 [Route("api/auth")]
 [Produces("application/json")]
 [AllowAnonymous]
-public sealed class AuthController(
-    ITokenService tokenService,
-    IOptions<AuthSeedOptions> seedOptions) : ControllerBase
+public sealed class AuthController(ISender sender) : ControllerBase
 {
     [HttpPost("login")]
-    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TokenResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
-        var seed = seedOptions.Value;
-
-        var usernameMatch = string.Equals(request.Username, seed.Username, StringComparison.Ordinal);
-        var passwordMatch = string.Equals(request.Password, seed.Password, StringComparison.Ordinal);
-
-        if (!usernameMatch || !passwordMatch)
-        {
-            return Problem(
-                detail: "Usuário ou senha inválidos.",
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Não autorizado");
-        }
-
-        var (token, expiresAt) = tokenService.GenerateToken(request.Username, "admin");
-        return Ok(new LoginResponse(token, expiresAt));
+        var result = await sender.Send(command);
+        return Ok(result);
     }
 }

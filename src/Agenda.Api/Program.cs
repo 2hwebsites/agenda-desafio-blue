@@ -2,6 +2,8 @@ using System.Text;
 using Agenda.Api.Auth;
 using Agenda.Api.Common;
 using Agenda.Application;
+using Agenda.Application.Abstractions.Auth;
+using Agenda.Application.Authentication;
 using Agenda.Domain.Entities;
 using Agenda.Infrastructure;
 using Agenda.Infrastructure.Persistence;

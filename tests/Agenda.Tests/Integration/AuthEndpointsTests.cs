@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Agenda.Api.Auth;
+using Agenda.Application.Authentication;
 using Shouldly;
 
 namespace Agenda.Tests.Integration;
@@ -27,7 +27,7 @@ public class AuthEndpointsTests : IClassFixture<AgendaApiFactory>
             new { username = AgendaApiFactory.TestUsername, password = AgendaApiFactory.TestPassword });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(JsonOpts);
+        var body = await response.Content.ReadFromJsonAsync<TokenResult>(JsonOpts);
         body!.Token.ShouldNotBeNullOrEmpty();
         body.ExpiresAt.ShouldBeGreaterThan(DateTime.UtcNow);
     }
@@ -83,7 +83,7 @@ public class AuthEndpointsTests : IClassFixture<AgendaApiFactory>
     {
         var loginResponse = await _client.PostAsJsonAsync("/api/auth/login",
             new { username = AgendaApiFactory.TestUsername, password = AgendaApiFactory.TestPassword });
-        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>(JsonOpts);
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<TokenResult>(JsonOpts);
 
         var authClient = _factory.CreateClient();
         authClient.DefaultRequestHeaders.Authorization =

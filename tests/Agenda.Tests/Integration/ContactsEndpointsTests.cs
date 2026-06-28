@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Agenda.Api.Auth;
+using Agenda.Application.Authentication;
 using Agenda.Application.Common.Models;
 using Agenda.Application.Contacts;
 using Shouldly;
@@ -29,7 +29,7 @@ public class ContactsEndpointsTests : IClassFixture<AgendaApiFactory>, IAsyncLif
         var loginResponse = await _client.PostAsJsonAsync("/api/auth/login",
             new { username = AgendaApiFactory.TestUsername, password = AgendaApiFactory.TestPassword });
         loginResponse.EnsureSuccessStatusCode();
-        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>(JsonOpts);
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<TokenResult>(JsonOpts);
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", loginResult!.Token);
     }

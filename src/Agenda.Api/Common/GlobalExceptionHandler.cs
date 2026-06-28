@@ -34,6 +34,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Recurso não encontrado", "Contato não encontrado."),
             DuplicateEmailException => (StatusCodes.Status409Conflict, "E-mail duplicado", "Já existe um contato com este e-mail."),
+            InvalidCredentialsException => (StatusCodes.Status401Unauthorized, "Não autorizado", "Usuário ou senha inválidos."),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno do servidor", "Ocorreu um erro inesperado."),
         };
 
