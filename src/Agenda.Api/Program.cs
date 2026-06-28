@@ -17,7 +17,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (app.Configuration.GetValue<bool>("RUN_MIGRATIONS", app.Environment.IsDevelopment()))
     await DbInitializer.InitializeAsync(app.Services);
 
 app.UseExceptionHandler();
