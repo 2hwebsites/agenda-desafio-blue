@@ -9,6 +9,13 @@ namespace Agenda.Tests.Integration;
 
 public sealed class AgendaApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public const string TestUsername = "testadmin";
+    public const string TestPassword = "testadmin_pass_for_integration_tests";
+
+    private const string TestJwtKey = "test-jwt-secret-key-for-integration-tests-min32chars!!";
+    private const string TestJwtIssuer = "agenda-tests";
+    private const string TestJwtAudience = "agenda-tests";
+
 #pragma warning disable CS0618
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:17-alpine")
@@ -18,6 +25,13 @@ public sealed class AgendaApiFactory : WebApplicationFactory<Program>, IAsyncLif
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
+        builder.UseSetting("Jwt:Audience", TestJwtAudience);
+        builder.UseSetting("Jwt:Key", TestJwtKey);
+        builder.UseSetting("Jwt:ExpiresMinutes", "60");
+        builder.UseSetting("AuthSeed:Username", TestUsername);
+        builder.UseSetting("AuthSeed:Password", TestPassword);
 
         builder.ConfigureServices(services =>
         {

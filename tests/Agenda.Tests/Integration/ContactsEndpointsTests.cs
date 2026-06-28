@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Agenda.Api.Auth;
 using Agenda.Application.Common.Models;
 using Agenda.Application.Contacts;
 using Shouldly;
@@ -20,7 +22,18 @@ public class ContactsEndpointsTests : IClassFixture<AgendaApiFactory>, IAsyncLif
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => _factory.ResetDatabaseAsync();
+    public async Task InitializeAsync()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login",
+            new { username = AgendaApiFactory.TestUsername, password = AgendaApiFactory.TestPassword });
+        loginResponse.EnsureSuccessStatusCode();
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>(JsonOpts);
+        _client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", loginResult!.Token);
+    }
+
     public Task DisposeAsync() => Task.CompletedTask;
 
     private async Task<ContactDto> CreateContactAsync(string name, string email, string? phone = null)
