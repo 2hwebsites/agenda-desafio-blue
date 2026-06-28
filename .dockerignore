@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+.git/
+.gitignore
+**/TestResults/
+**/coveragereport/
+tests/
+*.user
+*.suo
+.DS_Store
+**/appsettings.Development.json
