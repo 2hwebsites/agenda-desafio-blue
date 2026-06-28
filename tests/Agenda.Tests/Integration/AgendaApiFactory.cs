@@ -1,3 +1,4 @@
+using Agenda.Application.Abstractions.Messaging;
 using Agenda.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -41,6 +42,13 @@ public sealed class AgendaApiFactory : WebApplicationFactory<Program>, IAsyncLif
 
             services.AddDbContext<AgendaDbContext>(options =>
                 options.UseNpgsql(_postgres.GetConnectionString()));
+
+            // Replace RabbitMQ publisher with no-op so tests run without a broker
+            var publisherDescriptor = services
+                .FirstOrDefault(d => d.ServiceType == typeof(IIntegrationEventPublisher));
+            if (publisherDescriptor is not null)
+                services.Remove(publisherDescriptor);
+            services.AddSingleton<IIntegrationEventPublisher, NoOpIntegrationEventPublisher>();
         });
     }
 

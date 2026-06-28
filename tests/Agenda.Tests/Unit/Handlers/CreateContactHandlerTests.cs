@@ -3,6 +3,7 @@ using Agenda.Application.Contacts;
 using Agenda.Application.Contacts.Commands.CreateContact;
 using Agenda.Domain.Exceptions;
 using AutoMapper;
+using MediatR;
 using NSubstitute;
 using Shouldly;
 
@@ -12,11 +13,12 @@ public class CreateContactHandlerTests
 {
     private readonly IContactRepository _repository = Substitute.For<IContactRepository>();
     private readonly IMapper _mapper = Substitute.For<IMapper>();
+    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
     private readonly CreateContactHandler _handler;
 
     public CreateContactHandlerTests()
     {
-        _handler = new CreateContactHandler(_repository, _mapper);
+        _handler = new CreateContactHandler(_repository, _mapper, _publisher);
     }
 
     [Fact]
