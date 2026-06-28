@@ -86,22 +86,24 @@ cd agenda-desafio-blue
 docker compose up --build
 ```
 
-O compose sobe 4 serviços em ordem:
+O compose sobe 5 serviços em ordem:
 
 1. **postgres** → aguarda healthcheck (`pg_isready`)
 2. **rabbitmq** → aguarda healthcheck (`rabbitmq-diagnostics ping`)
-3. **api** → roda migrations + seed (via `RUN_MIGRATIONS=true`) e serve a API
+3. **api** → roda migrations + seed (via `RUN_MIGRATIONS=true`) e serve a API em `:8080`
 4. **worker** → conecta ao RabbitMQ e aguarda mensagens
+5. **frontend** → build Vite → nginx em `:5173`
 
-Aguarde todas as linhas de "started" aparecerem (30–60 s no primeiro build). Após isso:
+Aguarde todas as linhas de "started" aparecerem (60–120 s no primeiro build — inclui `npm ci`). Após isso:
 
 | Recurso | URL |
 |---|---|
+| **Aplicação web** | **http://localhost:5173** |
 | Swagger UI | http://localhost:8080/swagger |
 | Health check | http://localhost:8080/health |
 | RabbitMQ Management | http://localhost:15672 (guest / guest) |
 
-**Credenciais de acesso à API (dev, definidas no compose):**
+**Credenciais de acesso (dev, definidas no compose):**
 - Usuário: `admin` · Senha: `admin123`
 
 > **Nota de segurança:** as credenciais no `docker-compose.yml` são descartáveis e servem apenas para desenvolvimento/demonstração local. O `appsettings.json` versionado contém apenas placeholders (`<JWT_SECRET>`, `<DB_PASS>` etc.); valores reais entram por variáveis de ambiente em produção.
@@ -115,7 +117,7 @@ docker compose down -v       # remove volumes (banco limpo)
 
 ---
 
-### Opção B — Desenvolvimento local (dotnet run)
+### Opção B — Desenvolvimento local (dotnet run + npm run dev)
 
 **1. Subir apenas a infra:**
 
@@ -148,7 +150,17 @@ Em ambiente `Development`, `RUN_MIGRATIONS` assume `true` como padrão — migra
 dotnet run --project src/Agenda.Worker/Agenda.Worker.csproj
 ```
 
-**5. Parar tudo:**
+**5. Terminal 3 — Frontend (Vite dev server):**
+
+```bash
+cd frontend
+cp .env.example .env.development   # define VITE_API_BASE_URL=http://localhost:5196 (ou a porta da sua API)
+npm install
+npm run dev
+# UI em http://localhost:5173
+```
+
+**6. Parar tudo:**
 
 ```bash
 docker compose down
@@ -296,8 +308,8 @@ dotnet test --filter "Category!=Integration" --collect:"XPlat Code Coverage"
 | 3 — Testes | ✅ Completo | Unit + Integration (Testcontainers), 80 testes, cobertura reportada |
 | 3.1 — Auth JWT | ✅ Completo | Login com credencial-semente, Bearer JWT, Swagger Authorize |
 | 3.2 — Mensageria | ✅ Completo | RabbitMQ, domain events, Agenda.Contracts, Agenda.Worker |
-| 4 — Frontend | Pendente | Vue 3, integração com a API |
-| 5 — Deploy | ✅ Completo | Dockerfiles multi-stage, docker-compose 4 serviços, clone-and-run |
+| 4 — Frontend | ✅ Completo | Vue 3, Pinia, PrimeVue, CRUD completo, testes unitários Vitest |
+| 5 — Deploy | ✅ Completo | Dockerfiles multi-stage, docker-compose 5 serviços, clone-and-run |
 
 ## Mensageria (RabbitMQ)
 
