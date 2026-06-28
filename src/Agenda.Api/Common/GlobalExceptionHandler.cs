@@ -33,7 +33,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         var (statusCode, title, detail) = exception switch
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Recurso não encontrado", "Contato não encontrado."),
-            DuplicateEmailException dee => (StatusCodes.Status409Conflict, "E-mail duplicado", dee.Message),
+            DuplicateEmailException => (StatusCodes.Status409Conflict, "E-mail duplicado", "Já existe um contato com este e-mail."),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno do servidor", "Ocorreu um erro inesperado."),
         };
 
