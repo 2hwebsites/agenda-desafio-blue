@@ -39,6 +39,7 @@ watch(
   (err) => {
     emailFieldError.value = err
   },
+  { immediate: true },
 )
 
 watch([() => props.visible, () => props.contact], ([visible]) => {
