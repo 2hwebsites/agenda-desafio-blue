@@ -2,6 +2,32 @@
 
 Desafio técnico Tech Lead: CRUD de agenda de contatos full-stack — backend .NET 10 (Clean Architecture, CQRS, JWT, RabbitMQ) + frontend Vue 3 + PrimeVue, tudo conteinerizado em um único `docker compose up --build`.
 
+## Por que uma solução robusta para um problema simples?
+
+Este desafio é, em essência, um CRUD. Uma solução proporcional ao problema caberia em poucas classes. A robustez aqui é deliberada e consciente: o objetivo foi demonstrar domínio de padrões e práticas esperados de uma posição de Tech Lead, não sugerir que toda essa estrutura seria apropriada para um CRUD deste porte em produção.
+
+Cada decisão abaixo foi tomada sabendo do trade-off. A intenção é mostrar tanto a capacidade de aplicar essas ferramentas quanto o julgamento de saber quando elas se justificam — porque reconhecer que algo é over-engineering para um dado contexto é, em si, uma competência de liderança técnica.
+
+### Decisões e seus trade-offs
+
+- **Clean Architecture (Domain, Application, Infrastructure, Api).** Para um CRUD, uma estrutura em menos camadas bastaria. A separação foi mantida para demonstrar isolamento de responsabilidades e testabilidade. O domínio não depende de framework; a lógica de negócio é testável sem banco.
+
+- **CQRS com MediatR.** Reconhecidamente over-engineering para este escopo. Aplicado para demonstrar o padrão. Sob CQRS, cada handler atua como o serviço de aplicação daquele caso de uso — isolado e testável. Justificar-se-ia, em produção, com modelos de leitura e escrita divergentes ou alto volume de leitura. Alternativa proporcional ao problema: serviços de aplicação tradicionais.
+
+- **Repositório sobre o EF Core.** Há um debate legítimo aqui: o DbContext já implementa Unit of Work e Repository. A abstração foi mantida por aderência ao pedido do desafio e por testabilidade, com plena ciência da redundância.
+
+- **Autenticação JWT com credencial-semente.** Demonstra emissão e validação de JWT de ponta a ponta sem inflar o escopo com um módulo completo de gestão de usuários. Em produção: store de usuários com hash de senha (ex.: ASP.NET Core Identity).
+
+- **Mensageria com RabbitMQ (publisher + worker consumidor).** O caso de uso real para mensageria assíncrona é artificial num CRUD de contatos. Foi implementado por completo — publisher na API e um worker consumidor separado — para demonstrar uma arquitetura de eventos de verdade, não um publisher sem consumidor. A publicação é best-effort; em produção, o padrão correto para garantir entrega seria o Transactional Outbox (persistir o evento na mesma transação e publicá-lo de forma confiável depois).
+
+- **Frontend desacoplado em camadas.** Services (HTTP) → composables (estado/lógica reativa) → views/componentes (UI), com componentes reutilizáveis via props/emits. Demonstra "uso forte de componentes" e separação de responsabilidades no front. O token JWT é mantido no localStorage pela praticidade do desafio; a alternativa mais segura contra XSS seria cookie httpOnly.
+
+- **Cobertura de testes (80 no backend, 19 no front).** A suíte prioriza regras de negócio e contratos de erro, não a perseguição de um número. O que fica descoberto é startup, configuração e código gerado (migrations) — não lógica de negócio.
+
+### Em resumo
+
+A pergunta que guiou cada escolha não foi "qual a solução mais simples para um CRUD?", e sim "como demonstrar, num problema pequeno, as competências exigidas de um Tech Lead — incluindo o discernimento de saber o que seria exagero em produção?".
+
 ## Stack e Versões
 
 ### Backend
@@ -109,16 +135,7 @@ Erros são sempre serializados como `ProblemDetails` via `IExceptionHandler` (`G
 
 ## Diferenciais e decisões (trade-offs)
 
-Para um CRUD desta escala, CQRS, JWT e RabbitMQ são deliberadamente além do necessário — aplicados para demonstrar domínio técnico, não porque o problema exige. A tabela abaixo é honesta sobre quando cada padrão se justifica em produção.
-
-| Padrão / tecnologia | O que demonstra | Quando se justifica de verdade |
-|---|---|---|
-| **CQRS com MediatR** | Separação de comandos e queries, pipeline de comportamentos | Modelos de leitura e escrita divergentes; leitura em alta escala separada da escrita; múltiplos handlers decorados com cross-cutting concerns (logging, validação, cache) |
-| **JWT stateless** | Emissão e validação de token sem sessão no servidor | APIs consumidas por SPAs ou mobile, múltiplas instâncias sem sessão compartilhada. Em produção: store de usuários com hash de senha (ASP.NET Core Identity) no lugar da credencial-semente |
-| **RabbitMQ + domain events** | Desacoplamento de serviços via mensageria assíncrona | Processamento que não precisa ser síncrono com a requisição (e-mail, notificação, auditoria), integração entre bounded contexts distintos. Em produção: padrão Transactional Outbox para entrega atômica com o commit do banco |
-| **Clean Architecture (4 camadas)** | Inversão de dependência, testabilidade por camada | Sistemas que precisam trocar de framework, ORM ou broker sem reescrever regras de negócio; times grandes com ownership por camada |
-| **Frontend dockerizado (nginx)** | Build Vite multi-stage, SPA fallback, CORS pré-configurado | Qualquer deploy em container — a mesma imagem serve staging e produção; `VITE_API_BASE_URL` como build arg permite apontar para qualquer ambiente |
-| **Testes de frontend (Vitest)** | Isolamento de lógica via vi.mock, testes de componente com @vue/test-utils | CI que valida lógica de composables e contratos de emit sem depender de backend rodando |
+> A análise detalhada de cada padrão, sua motivação e o trade-off consciente estão na seção [Por que uma solução robusta para um problema simples?](#por-que-uma-solução-robusta-para-um-problema-simples) no início do documento.
 
 ## Bibliotecas e licenciamento
 
